@@ -1,0 +1,22 @@
+{
+  "name": "agentbox",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Self-hosted chat app built for AI agents.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
+    "dev:server": "npm -w packages/server run dev",
+    "dev:web": "npm -w packages/web run dev",
+    "build": "npm -w packages/web run build",
+    "start": "npm -w packages/server run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

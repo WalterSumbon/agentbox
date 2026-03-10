@@ -1,0 +1,14 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #222;
+}
+
+#root {
+  height: 100vh;
+}
