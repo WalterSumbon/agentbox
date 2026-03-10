@@ -26,15 +26,29 @@ app.get("/api/conversations", (_req, res) => {
   res.json(store.listConversations());
 });
 
-// ---- WebSocket: Client (frontend) ----
+// ---- WebSocket (noServer mode to support multiple paths) ----
 
-const clientWss = new WebSocketServer({ server, path: "/ws" });
+const clientWss = new WebSocketServer({ noServer: true });
 clientWss.on("connection", handleClientConnection);
 
-// ---- WebSocket: Agent ----
-
-const agentWss = new WebSocketServer({ server, path: "/agent" });
+const agentWss = new WebSocketServer({ noServer: true });
 agentWss.on("connection", handleAgentConnection);
+
+server.on("upgrade", (request, socket, head) => {
+  const { pathname } = new URL(request.url ?? "/", `http://${request.headers.host}`);
+
+  if (pathname === "/ws") {
+    clientWss.handleUpgrade(request, socket, head, (ws) => {
+      clientWss.emit("connection", ws, request);
+    });
+  } else if (pathname === "/agent") {
+    agentWss.handleUpgrade(request, socket, head, (ws) => {
+      agentWss.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 // ---- Start ----
 
