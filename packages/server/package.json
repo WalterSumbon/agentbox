@@ -4,12 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "dev": "tsx --watch src/index.ts",
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "@agentbox/shared": "*",
     "express": "^5.0.1",
     "ws": "^8.18.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.5.0",
+    "@types/cors": "^2.8.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "~5.9.3"
   }
 }
