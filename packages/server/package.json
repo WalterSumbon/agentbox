@@ -9,17 +9,23 @@
   },
   "dependencies": {
     "@agentbox/shared": "*",
-    "express": "^5.0.1",
-    "ws": "^8.18.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
     "cors": "^2.8.5",
-    "uuid": "^11.1.0"
+    "express": "^5.0.1",
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
-    "@types/express": "^5.0.0",
-    "@types/ws": "^8.5.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
     "typescript": "~5.9.3"
   }
 }

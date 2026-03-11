@@ -14,7 +14,8 @@
     "start": "npm -w packages/server run start"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "puppeteer": "^24.39.0"
   },
   "engines": {
     "node": ">=20"

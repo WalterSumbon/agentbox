@@ -26,18 +26,29 @@ export interface Message {
   content: string;
   /** Which agent produced this message (for multi-agent scenarios) */
   agentId?: string;
+  /** Display name of the agent (for rendering in group chats) */
+  agentName?: string;
   attachments?: Attachment[];
   timestamp: number;
   /** Extensible metadata */
   metadata?: Record<string, unknown>;
 }
 
+/** Conversation type */
+export type ConversationType = "direct" | "group";
+
 /** A conversation (a.k.a. thread / chat) */
 export interface Conversation {
   id: string;
   title?: string;
-  /** The agent assigned to this conversation (null = no agent yet) */
+  /** Conversation type: 'direct' (1 agent) or 'group' (multiple agents) */
+  type: ConversationType;
+  /** The primary agent assigned to this conversation (for direct chats) */
   agentId?: string;
+  /** All agent IDs in this conversation (for group chats) */
+  agentIds?: string[];
+  /** Owner user ID */
+  userId: string;
   createdAt: number;
   updatedAt: number;
 }
