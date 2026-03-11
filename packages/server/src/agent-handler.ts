@@ -249,6 +249,7 @@ function handleAgentResponse(res: AgentResponse): void {
       sendToClient(pending.clientWs, {
         type: "message_done",
         conversationId: pending.conversationId,
+        messageId: pending.messageId,
       });
 
       pendingRequests.delete(res.requestId);
@@ -265,6 +266,7 @@ function handleAgentResponse(res: AgentResponse): void {
       sendToClient(pending.clientWs, {
         type: "message_done",
         conversationId: pending.conversationId,
+        messageId: pending.messageId,
       });
       pendingRequests.delete(res.requestId);
       break;
@@ -299,6 +301,7 @@ export function stopGeneration(conversationId: string, clientWs: WebSocket): voi
       sendToClient(pending.clientWs, {
         type: "message_done",
         conversationId: pending.conversationId,
+        messageId: pending.messageId,
       });
       pendingRequests.delete(requestId);
     }

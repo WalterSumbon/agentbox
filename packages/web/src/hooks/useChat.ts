@@ -47,6 +47,9 @@ export interface UseChatReturn {
 
 // ---------- Hook ----------
 
+/** How long a streaming message can sit without updates before auto-clearing (ms). */
+const STREAMING_STALE_TIMEOUT_MS = 60_000; // 60 seconds
+
 export function useChat(ws: UseWebSocketReturn): UseChatReturn {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -62,7 +65,38 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
   const activeConvIdRef = useRef(activeConvId);
   activeConvIdRef.current = activeConvId;
 
+  /** Tracks when each streaming message was last updated, for stale detection. */
+  const streamingLastUpdateRef = useRef<Map<string, number>>(new Map());
+
   const clearError = useCallback(() => setLastError(null), []);
+
+  // Safety net: periodically check for stale streaming messages and clear them.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const staleIds: string[] = [];
+      for (const [id, lastUpdate] of streamingLastUpdateRef.current) {
+        if (now - lastUpdate > STREAMING_STALE_TIMEOUT_MS) {
+          staleIds.push(id);
+        }
+      }
+      if (staleIds.length > 0) {
+        console.warn("[useChat] clearing stale streaming messages:", staleIds);
+        setStreamingMessages((prev) => {
+          const next = new Map(prev);
+          for (const id of staleIds) {
+            next.delete(id);
+            streamingLastUpdateRef.current.delete(id);
+          }
+          if (next.size === prev.size) return prev; // nothing changed
+          return next;
+        });
+        // If all streaming messages cleared, also clear typing
+        setTyping(false);
+      }
+    }, 5_000); // check every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // ---- Server event handler ----
 
@@ -131,6 +165,7 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
             setTyping(false);
             // Clear any streaming content for this message.
             if (evt.message.id) {
+              streamingLastUpdateRef.current.delete(evt.message.id);
               setStreamingMessages((prev) => {
                 if (!prev.has(evt.message!.id)) return prev;
                 const next = new Map(prev);
@@ -161,6 +196,7 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
             evt.conversationId == null ||
             evt.conversationId === activeConvIdRef.current
           ) {
+            streamingLastUpdateRef.current.set(messageId, Date.now());
             setStreamingMessages((prev) => {
               const next = new Map(prev);
               const existing = next.get(messageId);
@@ -178,9 +214,20 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
       // -- Stream finished --
       case "message_done": {
         setTyping(false);
-        // Clear all streaming messages — the final message event already
-        // added the complete message to the messages array.
-        setStreamingMessages(new Map());
+        if (evt.messageId) {
+          // Targeted cleanup: remove only the specific streaming message.
+          streamingLastUpdateRef.current.delete(evt.messageId);
+          setStreamingMessages((prev) => {
+            if (!prev.has(evt.messageId!)) return prev;
+            const next = new Map(prev);
+            next.delete(evt.messageId!);
+            return next;
+          });
+        } else {
+          // Fallback: clear all streaming messages (legacy compat).
+          setStreamingMessages(new Map());
+          streamingLastUpdateRef.current.clear();
+        }
         break;
       }
 
@@ -207,6 +254,7 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
         setTyping(false);
         // Clear streaming messages on error to remove stale streaming indicators
         setStreamingMessages(new Map());
+        streamingLastUpdateRef.current.clear();
         if (evt.error) {
           setLastError(evt.error);
         }
@@ -241,6 +289,7 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
       activeConvIdRef.current = id;
       setMessages([]);
       setStreamingMessages(new Map());
+      streamingLastUpdateRef.current.clear();
       setTyping(false);
       ws.send({ type: "get_history", conversationId: id });
     },
@@ -329,6 +378,7 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
     });
     setTyping(false);
     setStreamingMessages(new Map());
+    streamingLastUpdateRef.current.clear();
   }, [ws]);
 
   return {

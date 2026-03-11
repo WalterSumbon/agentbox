@@ -78,6 +78,8 @@ export type ServerEventType =
 export interface ServerEvent {
   type: ServerEventType;
   conversationId?: string;
+  /** Message ID (for "message_done" — identifies which streaming message is complete) */
+  messageId?: string;
   /** Full message (for "message" type) */
   message?: Message;
   /** Streaming chunk (for "message_delta") */
