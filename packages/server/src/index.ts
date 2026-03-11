@@ -8,7 +8,7 @@ import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { handleClientConnection } from "./client-handler.js";
 import { handleAgentConnection } from "./agent-handler.js";
-import { register, login, verifyToken, AuthError } from "./auth.js";
+import { register, login, loginWithToken, provisionUser, verifyToken, AuthError } from "./auth.js";
 import * as store from "./store/sqlite.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -116,11 +116,18 @@ app.get("/api/health", (_req, res) => {
 
 // ---- REST API: Auth ----
 
-// Rate limit: max 10 registrations per IP per 15 minutes
-app.post("/api/auth/register", rateLimit(15 * 60 * 1000, 10), async (req, res) => {
+// Provision user — protected by agent API key (for Better-Claw CLI integration)
+app.post("/api/auth/provision", rateLimit(15 * 60 * 1000, 100), (req, res) => {
   try {
-    const { username, password, displayName } = req.body;
-    const result = await register(username, password, displayName);
+    // Authenticate with agent API key
+    const authKey = extractBearerToken(req) || req.body?.agentKey;
+    if (authKey !== AGENT_API_KEY) {
+      res.status(403).json({ error: { code: "FORBIDDEN", message: "Invalid agent API key" } });
+      return;
+    }
+
+    const { username, displayName, loginToken } = req.body;
+    const result = provisionUser(username, displayName, loginToken);
     res.status(201).json(result);
   } catch (err: any) {
     const status = err instanceof AuthError ? 400 : 500;
@@ -128,11 +135,23 @@ app.post("/api/auth/register", rateLimit(15 * 60 * 1000, 10), async (req, res) =
   }
 });
 
-// Rate limit: max 20 login attempts per IP per 15 minutes
+// Login — accepts { token } for token-based login (primary), or { username, password } (legacy)
 app.post("/api/auth/login", rateLimit(15 * 60 * 1000, 20), async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const result = await login(username, password);
+    const { token, username, password } = req.body;
+
+    let result;
+    if (token) {
+      // Token-based login (primary method)
+      result = loginWithToken(token);
+    } else if (username && password) {
+      // Legacy username+password login
+      result = await login(username, password);
+    } else {
+      res.status(400).json({ error: { code: "INVALID_INPUT", message: "Token is required" } });
+      return;
+    }
+
     res.json(result);
   } catch (err: any) {
     const status = err instanceof AuthError ? 401 : 500;

@@ -41,6 +41,7 @@ export function initDb(): void {
   db.pragma("busy_timeout = 5000");
 
   createTables();
+  runMigrations();
 }
 
 function createTables(): void {
@@ -48,8 +49,9 @@ function createTables(): void {
     CREATE TABLE IF NOT EXISTS users (
       id            TEXT PRIMARY KEY,
       username      TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT NOT NULL DEFAULT '',
       display_name  TEXT NOT NULL,
+      login_token   TEXT UNIQUE,
       created_at    INTEGER NOT NULL
     );
 
@@ -92,6 +94,16 @@ function createTables(): void {
   `);
 }
 
+/** Run schema migrations for existing databases. */
+function runMigrations(): void {
+  // Check if login_token column exists
+  const cols = db.pragma("table_info(users)") as { name: string }[];
+  const hasLoginToken = cols.some((c) => c.name === "login_token");
+  if (!hasLoginToken) {
+    db.exec("ALTER TABLE users ADD COLUMN login_token TEXT UNIQUE");
+  }
+}
+
 // Auto-initialise when this module is imported
 initDb();
 
@@ -130,14 +142,79 @@ interface UserRow {
   username: string;
   password_hash: string;
   display_name: string;
+  login_token: string | null;
   created_at: number;
+}
+
+/**
+ * Create a user provisioned via agent API (token-based, no password).
+ * If a user with the same login_token already exists, update and return it.
+ */
+export function createUserWithToken(
+  username: string,
+  displayName: string,
+  loginToken: string,
+): UserInfo {
+  // Check if user with this login_token already exists
+  const existing = getUserByLoginToken(loginToken);
+  if (existing) {
+    // Update display name if changed
+    stmt(`UPDATE users SET display_name = ? WHERE login_token = ?`).run(
+      displayName,
+      loginToken,
+    );
+    return { ...existing, displayName };
+  }
+
+  // Check if username is taken — append random suffix if so
+  let finalUsername = username;
+  let attempt = 0;
+  while (getUserByUsername(finalUsername)) {
+    attempt++;
+    finalUsername = `${username}_${attempt}`;
+  }
+
+  const id = uuid();
+  const createdAt = Date.now();
+
+  stmt(`
+    INSERT INTO users (id, username, password_hash, display_name, login_token, created_at)
+    VALUES (?, ?, '', ?, ?, ?)
+  `).run(id, finalUsername, displayName, loginToken, createdAt);
+
+  return { id, username: finalUsername, displayName, createdAt };
+}
+
+export function getUserByLoginToken(
+  loginToken: string,
+): UserInfo | undefined {
+  const row = stmt(`
+    SELECT id, username, display_name, created_at
+    FROM users WHERE login_token = ?
+  `).get(loginToken) as Pick<UserRow, "id" | "username" | "display_name" | "created_at"> | undefined;
+
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    createdAt: row.created_at,
+  };
+}
+
+/** Get the login_token for a user by their ID. */
+export function getUserLoginToken(userId: string): string | null {
+  const row = stmt(`
+    SELECT login_token FROM users WHERE id = ?
+  `).get(userId) as { login_token: string | null } | undefined;
+  return row?.login_token ?? null;
 }
 
 export function getUserByUsername(
   username: string,
 ): UserRow | undefined {
   const row = stmt(`
-    SELECT id, username, password_hash, display_name, created_at
+    SELECT id, username, password_hash, display_name, login_token, created_at
     FROM users WHERE username = ?
   `).get(username) as UserRow | undefined;
 

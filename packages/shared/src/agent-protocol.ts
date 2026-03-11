@@ -44,6 +44,14 @@ export interface AgentRequest {
   attachments?: Attachment[];
   /** Per-conversation agent config */
   config?: Record<string, unknown>;
+  /** User info for the message sender (for auto-binding) */
+  user?: {
+    id: string;
+    username: string;
+    displayName: string;
+    /** The login token used to authenticate — allows agent to auto-bind user */
+    loginToken?: string;
+  };
 }
 
 // ---------- Agent → Server ----------

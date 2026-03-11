@@ -1,5 +1,5 @@
 // ============================================================
-// LoginPage — Sign in / Sign up card
+// LoginPage — Token-based login card (no registration)
 // ============================================================
 
 import { useState, useCallback } from "react";
@@ -8,12 +8,9 @@ import { useAuth } from "../contexts/AuthContext";
 import "./components.css";
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
+  const { login } = useAuth();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,42 +19,23 @@ export default function LoginPage() {
       e.preventDefault();
       setError(null);
 
-      const trimmedUser = username.trim();
-      const trimmedPass = password.trim();
+      const trimmedToken = token.trim();
 
-      if (!trimmedUser || !trimmedPass) {
-        setError("Username and password are required.");
+      if (!trimmedToken) {
+        setError("Token is required.");
         return;
       }
 
       setLoading(true);
       try {
-        if (mode === "signin") {
-          await login(trimmedUser, trimmedPass);
-        } else {
-          await register(
-            trimmedUser,
-            trimmedPass,
-            displayName.trim() || undefined,
-          );
-        }
+        await login(trimmedToken);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong.");
+        setError(err instanceof Error ? err.message : "Invalid token.");
       } finally {
         setLoading(false);
       }
     },
-    [mode, username, password, displayName, login, register],
-  );
-
-  const switchMode = useCallback(
-    (next: "signin" | "signup") => {
-      if (next !== mode) {
-        setMode(next);
-        setError(null);
-      }
-    },
-    [mode],
+    [token, login],
   );
 
   return (
@@ -69,76 +47,40 @@ export default function LoginPage() {
           <p>Connect with AI agents, seamlessly.</p>
         </div>
 
-        {/* Tabs */}
-        <div className="login-tabs">
-          <button
-            type="button"
-            className={`login-tab ${mode === "signin" ? "active" : ""}`}
-            onClick={() => switchMode("signin")}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            className={`login-tab ${mode === "signup" ? "active" : ""}`}
-            onClick={() => switchMode("signup")}
-          >
-            Sign Up
-          </button>
-        </div>
-
         {/* Form */}
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-field">
-            <label htmlFor="login-username">Username</label>
+            <label htmlFor="login-token">Access Token</label>
             <input
-              id="login-username"
+              id="login-token"
               type="text"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
+              placeholder="Enter your access token"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              autoComplete="off"
+              autoFocus
               disabled={loading}
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}
             />
           </div>
-
-          <div className="login-field">
-            <label htmlFor="login-password">Password</label>
-            <input
-              id="login-password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={
-                mode === "signin" ? "current-password" : "new-password"
-              }
-              disabled={loading}
-            />
-          </div>
-
-          {mode === "signup" && (
-            <div className="login-field">
-              <label htmlFor="login-display-name">
-                Display Name (optional)
-              </label>
-              <input
-                id="login-display-name"
-                type="text"
-                placeholder="How should we call you?"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          )}
 
           {error && <div className="login-error">{error}</div>}
 
           <button type="submit" className="login-submit" disabled={loading}>
             {loading && <span className="login-spinner" />}
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            Sign In
           </button>
+
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: "0.8rem",
+              color: "var(--main-text-muted)",
+              marginTop: "8px",
+            }}
+          >
+            Get your token from the administrator.
+          </div>
         </form>
       </div>
     </div>

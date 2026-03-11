@@ -19,12 +19,8 @@ interface AuthContextValue {
   user: UserInfo | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  register: (
-    username: string,
-    password: string,
-    displayName?: string,
-  ) => Promise<void>;
+  /** Login with an access token (issued by admin via CLI). */
+  login: (accessToken: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -91,27 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (username: string, password: string): Promise<void> => {
+    async (accessToken: string): Promise<void> => {
       const res = await apiPost<AuthResponse>("/api/auth/login", {
-        username,
-        password,
-      });
-      persistToken(res.token);
-      setUser(res.user);
-    },
-    [persistToken],
-  );
-
-  const register = useCallback(
-    async (
-      username: string,
-      password: string,
-      displayName?: string,
-    ): Promise<void> => {
-      const res = await apiPost<AuthResponse>("/api/auth/register", {
-        username,
-        password,
-        displayName,
+        token: accessToken,
       });
       persistToken(res.token);
       setUser(res.user);
@@ -133,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isAuthenticated, login, register, logout }}
+      value={{ user, token, isAuthenticated, login, logout }}
     >
       {children}
     </AuthContext.Provider>

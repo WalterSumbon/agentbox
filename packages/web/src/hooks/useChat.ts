@@ -178,6 +178,9 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
       // -- Stream finished --
       case "message_done": {
         setTyping(false);
+        // Clear all streaming messages — the final message event already
+        // added the complete message to the messages array.
+        setStreamingMessages(new Map());
         break;
       }
 
@@ -202,6 +205,8 @@ export function useChat(ws: UseWebSocketReturn): UseChatReturn {
       case "error": {
         console.error("[useChat] server error:", evt.error);
         setTyping(false);
+        // Clear streaming messages on error to remove stale streaming indicators
+        setStreamingMessages(new Map());
         if (evt.error) {
           setLastError(evt.error);
         }

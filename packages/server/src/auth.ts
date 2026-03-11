@@ -80,7 +80,7 @@ export async function register(
 }
 
 /**
- * Authenticate with username + password.
+ * Authenticate with username + password (legacy).
  * @throws AuthError if credentials are invalid.
  */
 export async function login(
@@ -105,6 +105,56 @@ export async function login(
     displayName: row.display_name,
     createdAt: row.created_at,
   };
+
+  const token = signToken(user);
+  return { token, user };
+}
+
+/**
+ * Authenticate with a login token (primary method).
+ * @throws AuthError if the token is invalid.
+ */
+export function loginWithToken(loginToken: string): AuthResponse {
+  loginToken = loginToken.trim();
+  if (!loginToken) {
+    throw new AuthError("Token is required", "INVALID_CREDENTIALS");
+  }
+
+  const user = store.getUserByLoginToken(loginToken);
+  if (!user) {
+    throw new AuthError("Invalid token", "INVALID_CREDENTIALS");
+  }
+
+  const token = signToken(user);
+  return { token, user };
+}
+
+/**
+ * Provision a user via the agent API (no password, token-based).
+ * If the login token already maps to a user, updates and returns it.
+ */
+export function provisionUser(
+  username: string,
+  displayName: string,
+  loginToken: string,
+): AuthResponse {
+  username = username.trim().toLowerCase();
+  if (!username || username.length < 1 || username.length > 32) {
+    throw new AuthError("Username must be 1–32 characters", "INVALID_USERNAME");
+  }
+  if (!loginToken || !loginToken.trim()) {
+    throw new AuthError("Login token is required", "INVALID_INPUT");
+  }
+
+  const sanitizedDisplayName = displayName
+    ? stripHtml(displayName).trim() || username
+    : username;
+
+  const user = store.createUserWithToken(
+    username,
+    sanitizedDisplayName.slice(0, 64),
+    loginToken.trim(),
+  );
 
   const token = signToken(user);
   return { token, user };

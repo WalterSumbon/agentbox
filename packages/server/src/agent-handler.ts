@@ -8,6 +8,7 @@ import type {
   AgentRequest,
   AgentResponse,
   Message,
+  UserInfo,
 } from "@agentbox/shared";
 import { v4 as uuid } from "uuid";
 import * as store from "./store/sqlite.js";
@@ -260,6 +261,11 @@ function handleAgentResponse(res: AgentResponse): void {
         conversationId: pending.conversationId,
         error: res.error ?? { code: "AGENT_ERROR", message: "Unknown error" },
       });
+      // Send message_done so client clears streaming/typing state
+      sendToClient(pending.clientWs, {
+        type: "message_done",
+        conversationId: pending.conversationId,
+      });
       pendingRequests.delete(res.requestId);
       break;
     }
@@ -310,6 +316,7 @@ export async function dispatchToAgent(
   conversationId: string,
   clientWs: WebSocket,
   targetAgentId?: string,
+  user?: UserInfo,
 ): Promise<void> {
   const messages = store.getMessages(conversationId);
   const requestId = uuid();
@@ -328,11 +335,24 @@ export async function dispatchToAgent(
   }
 
   if (agent) {
+    // Build user info with login_token for auto-binding
+    let requestUser: AgentRequest["user"];
+    if (user) {
+      const loginToken = store.getUserLoginToken(user.id);
+      requestUser = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        loginToken: loginToken ?? undefined,
+      };
+    }
+
     // Dispatch to real agent
     const request: AgentRequest = {
       requestId,
       conversationId,
       messages,
+      user: requestUser,
     };
 
     pendingRequests.set(requestId, {

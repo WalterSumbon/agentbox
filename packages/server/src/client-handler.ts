@@ -262,7 +262,7 @@ async function handleClientMessage(ws: WebSocket, msg: ClientMessage): Promise<v
         if (dispatchIds.length > 0) {
           // Dispatch to each online agent in the group
           for (const agentId of dispatchIds) {
-            await dispatchToAgent(conv.id, ws, agentId);
+            await dispatchToAgent(conv.id, ws, agentId, client.user);
           }
         } else {
           // No online agents in group
@@ -282,7 +282,7 @@ async function handleClientMessage(ws: WebSocket, msg: ClientMessage): Promise<v
         }
       } else {
         // Direct chat: dispatch to the conversation's agent, or first available
-        await dispatchToAgent(conv.id, ws, conv.agentId);
+        await dispatchToAgent(conv.id, ws, conv.agentId, client.user);
       }
       break;
     }
